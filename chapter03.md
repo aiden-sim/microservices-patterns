@@ -98,16 +98,34 @@ ex) https://developers.google.com/authorized-buyers/rtb/downloads/realtime-biddi
   - REST, gRPC 
 
 ### 3.2.1 동기 RPI 패턴:REST
-- 
-
+- REST는 HTTP로 소통하는 IPC
+- 리소스는 REST의 핵심 개념 (비즈니스 객체 의미)
+- REST는 HTTP 동사를 사용해 리소스를 가공 (GET, POST, PUT, DELETE)
 
 #### REST 성숙도 모델
+- REST의 성숙도
+  - 레벨 0: 클라이언트는 HTTP POST 요청을 하여 서비스를 호출 (Method를 다 사용하지 않는다는걸로 이해)
+  - 레벨 1: 서비스는 리소스 개념을 지원. 
+  - 레벨 2: 서비스는 HTTP 동사(GET, POST, PUT 등)를 이용해 액션을 수행, 필요시 매개변수 저장. 덕분에 GET 요청을 캐싱
+  - 레벨 3: HATEOAS(헤이티오스) 원칙에 기반하여 설계. HATEOAS를 사용하면 하드 코딩한 URL을 클라이언트 코드에 욱여 넣지 않아도 됨 (assetManager 에서 사용할 수 있을까?)
 
 #### REST API
+- REST는 원래 IDL이 없었지만 필요하다는 공감대가 확산되어 스웨거라는 오픈소스를 발전시켜 오픈 API명세가 REST IDL로서 보급
+  - 인터페이스 정의를 기반으로 클라이언트 스텁(stub), 서버 스켈레톤을 생성하는 툴이 포함
 
 #### 요청 한 번으로 많은 리소스를 가져오기 어렵다
+- REST 리소스는 Consumer, Order 같은 비즈니스 객체 중심이기 때문에 클라이언트가 요청 한번으로 연관된 객체를 모두 가져올 수 있을지 고민
+  - ex) GET /orders/order-id-1234?expand=consumer
+- 시나리오가 복잡해지면 효율이 떨어지고 구현 시간이 많이 소요
+  - GraphQL, 넷플릭스 팔코등 대체 API 기술 
 
 #### 작업을 HTTP 동사에 매핑하기 어렵다
+- 수정 시, PUT 동사를 쓰지만, 주문 취소/변경 등 다양할 수 있고멱등성이 보장되지 않는 업데이트도 있음
+  - 리소스의 특정 부위를 업데이트하는 하위 리소스 정의
+  - ex) 주문 취소 : POST /orders/{orderId}/cancel, 주문 변경 : POST /orders/{orderId}/revise 
 
+- REST 대체의 gRPC 대체 기술이 인기 (gRPC로 사용 시, 동사 매핑 이점이 무엇인지 잘 모르겠음)
+ 
 #### REST의 장단점
+
 
