@@ -270,7 +270,37 @@
     - 결국 금액은 RDB를 사용하라는 얘기인가 ?!!
 
 ## 4.4 주문 서비스 및 주문 생성 사가 설계
--
+- ![image](https://user-images.githubusercontent.com/7076334/166251928-f15c7e24-b4b6-42a1-93ce-64c500b41ba9.png)
+  - CreateOrderSaga : OrderService, Order, 주문 생성 사가를 오케스트레이션
+    - KitchenServiceProxy, OrderServiceProxy : 사가 오케스트레이터는 사가 참여자 프록시 클래스를 거쳐 참여자에게 커맨드 메시지 전달 
+  - OrderService(참여자), Order, OrderRepository : 핵심 비즈니스 로직
+  - OrderCommandHandlers : OrderService를 호출하여 커맨드 메시지를 처리하는 어댑터
+
+### 4.4.1 OrderService 클래스
+- ![image](https://user-images.githubusercontent.com/7076334/166253760-ea107576-498b-48f8-91a8-c96b619ef340.png)
+- ![image](https://user-images.githubusercontent.com/7076334/166253554-e322237c-9f77-436e-b2e9-116edb281732.png)
+  - OrderService는 주문 생성/관리를 담당하는 서비스 API 계층이 호출하는 도메인 서비스
+  - Order를 생성/수정하고, OrderRepository를 통해 Order를 저장
+  - SagaManager를 통해 CreateOrderSaga 생성
+    - SagaManager는 이벤추에이트에서 기본 제공되는 오케스트레이터와 참여자를 작성하는 클래스
+
+
+### 4.4.2 주문 생성 사가 구현
+#### CreateOrderSaga 오케스트레이터
+
+#### CreateOrderSagaState 클래스
+
+#### KitchenServiceProxy 클래스
+
+#### 이벤추에이트 트램 사가 프레임워크
+
+
+
+### 4.4.3 OrderCommandHandlers 클래스
+
+
+### 4.4.4 OrderServiceConfiguration 클래스
+
 
 
 ## 느낀점
