@@ -286,22 +286,74 @@
 
 
 ### 4.4.2 주문 생성 사가 구현
+- CreateOrderSaga : CreateOrderSagaState로 커맨드 메시지를 생성하고, 사가 참여자 프록시 클래스가 지정한 메시지 채널을 통해 참여자에게 메시지를 전달
+- CreateOrderSagaState : 사가의 저장 상태, 커맨드 메시지를 생성
+- 사가 참여자 프록시 클래스 : 프록시 클래스마다 커맨드 채널, 커맨드 메시지 탙입, 반환형으로 구성된 사가 참여자의 메시징 API를 정의
+
 #### CreateOrderSaga 오케스트레이터
+- CreateOrderSaga는 상태 기계를 구현한 클래스
+  - 예제 183P
+    - CreateOrderSaga 클래스의 핵심은 사가 데피니션(DSL 를 이용하여 정의)
+    - invokeParticipant : 포워드 트랜잭션을 정의한 메서드
+    - onReply : 성공 시 수행
+    - withCompensation : 보상 시 수행
 
 #### CreateOrderSagaState 클래스
+- CreateOrderSagaState는 사가 인스턴스의 상태를 나타낸 클래스
+- OrderServicer가 이 클래스의 인스턴스를 생성하고, 이벤추에이트 트램 사가 프레임워크가 이 인스턴스를 DB에 저장
+- CreateOrderSagaState는 사가 참여자에게 보낼 메시지를 만드는 일
+  - 예제 185P
+    - CreateOrderSag는 CreateOrderSagaState를 호출하여 커맨드 메시지를 생성하고, 생성된 메시지를 KitchenServiceProxy 같은 클래스의 끝점으로 전달
 
 #### KitchenServiceProxy 클래스
+- 주방 서비스의 커맨드 메시지 3개의 끝점을 정의
+  - create : 티켓 생성
+  - confirmCreate : 생성 확인
+  - cancel : 티켓 취소
+  - ```
+    public final CommandEndpoint<CreateTicket> create = CommandEndpointBuilder
+          .forCommand(CreateTicket.class)
+          .withChannel(KitchenServiceChannels.kitchenServiceChannel)
+          .withReply(CreateTicketReply.class)
+          .build();
+    ```
+    - 커맨드 타입, 커맨드 메시지의 목적지 채널, 예상 응답 타입 지정
+
+
+- 프록시 클래스 사용 시 이점
+  - 1) 프록시 클래스는 타입이 정해진 끝점을 정의하므로 엉뚱한 메시지가 서비스에 전달될 일은 거의 없음
+  - 2) 프록시 클래스는 잘 정의된 서비스 호출 API라서 코드를 이해하고 테스트하기 쉬움
 
 #### 이벤추에이트 트램 사가 프레임워크
+- 이벤추에이트 트램 사가는 사가 오케스트레이터 및 사가 참여자를 모두 작성할 수 있는 프레임워크
+  - ![image](https://user-images.githubusercontent.com/7076334/166459031-8d46b4ca-56d0-4093-bb5c-1a834fa8816f.png)
 
+- OrderService가 사가를 생성할 때 이벤트 순서
+  - ![image](https://user-images.githubusercontent.com/7076334/166461094-145075fe-dd4a-4f12-ab19-eefb27cd4dc4.png)
+    - 1) OrderService는 CreateOrderSagaState를 생성
+    - 2) OrderService는 SagaManager를 호출하여 사가 인스턴스를 생성
+    - 3) SagaManager는 사가 데피니션의 첫 번째 단계를 실행
+    - 4) CreateOrderSagaState를 호출하여 커맨드 메시지를 생성
+    - 5) SagaManager는 커맨드 메시지를 사가 참여자(소비자 서비스)에게 보냄
+    - 6) SagaManager는 사가 인스턴스를 DB에 저장
 
+- SagaManager가 사가 참여자의 응답 메시지를 수신할 때 발생하는 이벤트
+  - ![image](https://user-images.githubusercontent.com/7076334/166461073-b36fe5f9-fe86-4dc1-b432-7998030b3fd6.png)
+    - 1) 이벤추에이트 트램은 소비자 서비스의 응답을 SagaManager에 전달
+    - 2) SagaManager는 DB에서 사가 인스턴스를 조회
+    - 3) SagaManager는 그 다음 사가 데피니션 단계를 실행
+    - 4) CreateOrderSagaState를 호출하여 커맨드 메시지를 생성
+    - 5) SagaManager는 커맨드 메시지를 사가 참여자(주방 서비스)에게 보냠
+    - 6) SagaManager는 업데이트 사가 인스턴스를 DB에 저장
 
 ### 4.4.3 OrderCommandHandlers 클래스
-
+- ![image](https://user-images.githubusercontent.com/7076334/166462146-7ee65851-292d-4151-9281-14683f181e75.png)
+  - OrderCommandHandlers : 사가가 전송한 커맨드 메시지를 담당할 핸들러 메서드 정의
+  - SagaCommandDispatcher : 커맨드 메시지를 적절한 핸들러 메서드에 보내고 응답을 반환하는 클래스
 
 ### 4.4.4 OrderServiceConfiguration 클래스
-
-
+- 다양한 스프링 빈 정의
+  - CommandHandlers, CommandHnaldersDispatcher, Proxy, Saga, Manager, Service
 
 ## 느낀점
 - 이렇게 또 이론만 늘었다...
