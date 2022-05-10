@@ -159,18 +159,52 @@
   - DomainEventPublishingAdapter : DomainEventPulbihser 인터페이스를 구현하여 Ticket 도메인 이벤트를 발행
 
 ### 5.4.1 Ticket 애그리거트
+- Ticket 애그리거트는 음식점 주방 관점에서 바라본 주문을 나타낸 것
+- 신원, 배달 정보, 지불 내역 등 소비자와 관련된 정보는 없고, 오직 음식점 주방이 배달원이 픽업할 주문을 준비하는데만 집중
 
 #### Ticket 클래스 구조
+- 도메인 클래스
+- 다른 애그리거트를 기본키로 참조하고 있음
+  -restaurantId 
 
 #### Ticket 애그리거트 동작
+- accept() : 음식점이 주문 접수
+- preparing() : 음식점이 주문을 준비 (변경/취소 불가)
+- readyForPickup() : 주문 픽업 준비 끝
 
 #### KitchenService 도메인 서비스
+- 주방 서비스의 인바운드 어댑터가 호출
+- 주문 상태를 변경하는 accept(), rejct(), preparing() 등의 메서드는 각 애그리거트를 가져와 애그리거트 루트에 있떤 해당 메서드를 호출 후, 도메인 이벤트를 발행
 
 #### KitchenServiceCommandHandler 클래스
+- 주문 서비스에 구현된 사가가 전송한 커맨드 메시지를 처리하는 어댑터
 
 ## 5.5 주문 서비스 비즈니스 로직
 
+- 인바운드 어댑터
+  - REST API : 컨슈머가 사용하는 UI가 호출하는 REST API. OrderService를 호출하여 Order를 생성/수정
+  - OrderEventConsumer : 음식점 서비스가 발행한 이벤트를 두고. OrderService를 호출하여 Restaurant 레플리케를 생성/수정
+  - OrderCommandHandler : 사가가 호출하는 비동기 요청/응답 기반의 API. OrderService를 호출하여 Order를 수정
+  - SagaReplyAdapter : 사가 응답 채널을 구독하고 사가를 호출
 
-## 5.6 마치며
+- 아웃바운드 어댑터
+  - DB 어댑터 : OrderRepository 인터페이스를 구현하여 주문 서비스 DB에 접근
+  - DomainEventPublishingAdapter : DomainEventPublisher 인터페이스를 구현하여 Order 도메인 이벤트를 발행
+  - OutboundCommandMessageAdapter : CommandPublisher 인터페이스를 구현한 클래스. 커맨드 메시지를 사가 참여자에게 보냄
 
+### 5.5.1 Order 애그리거트
 
+#### Order 애그리거트 구조
+- Order 클래스가 애그리거트 루트고, OrderLineItem, DeliveryInfo, PaymentInfo 등 여러 밸류 객체가 있음
+- Consumer와 Restaurant은 상이한 애그리거트라서 기본키 값으로 상호 참조
+
+#### Order 애그리거트 상태 기계
+- 주문을 생성/수정하려면 OrderService는 반드시 다른 서비스와 사가로 협동해야 함
+
+#### Order 애그리거트 메서드
+- createOrder()는 주문을 생성하고 OrderCreatedEvent를 발행하는 정적 팩토리 메서드
+- OrderCreatedEvent는 주문 품목, 총액, 음식점ID, 음식점명 등 주문 내역이 포함된, 강화된 이벤트
+
+### 5.5.2 OrderService 클래스
+- OrderService는 비즈니스 로직의 진입점
+  - 대부분 사가를 만들어 Order 애그리거트 생성/수정을 오케스트레이션
