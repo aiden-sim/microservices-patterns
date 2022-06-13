@@ -224,32 +224,79 @@
 
 
 ## 7.4 CQRS 뷰 구현: AWS DynamoDB 응용
+- DynamoDB는 AWS 확장성이 우수한 NoSQL DB
+  - DynamoDB의 데이터 모델은 JSON 객체처럼 계층적인 이름-값 쌍이 포함된 테이블로 구성
+
+- 각 모듈 역할
+  - OrderHistoryEventHandler : 여러 서비스가 발행한 이벤트를 구독하며 OrderHistoryDAO를 호출
+  - OrderHistoryQuery API 모듈 : 앞서 설명한 REST 끝점을 구현
+  - OrderHistoryDataAcess : DynamoDB 테이블 및 관련 헬퍼 클래스를 조회/수정하는 메서드가 정의된 OrderHistoryDAO를 포함
+  - ftgo-order-history : 주문이 저장된 DynamoDB 테이블
 
 ### 7.4.1 OrderHistoryEventHandlers 모듈
+- OrderHistoryEventHandlers는 이벤트를 소비해서 DynamoDB 테이블을 업데이트하는 이벤트 핸들러로 구성된 모듈
 
 ### 7.4.2 DynamoDB 데이터 모델링 및 쿼리 설계
+- DynamoDB 데이터 접근 능력이 RDBMS에 훨씬 못 미치기 때문에 어떻게 저장하면 좋을지 잘 설계해야 함
+- 특히 쿼리는 스키마 설계에 결정적인 영향을 끼치므로 다음과 같은 설계 이슈를 검토
+  - ftgo-order-history 테이블 설계
+  - findOrderHistory 쿼리 전용 인덱스 정의
+  - findOrderHistory 쿼리 구현
+  - 쿼리 결과 페이지네이션
+  - 주문 업데이트
+  - 중복 이벤트 감지 
 
 #### ftgo-order-history 테이블 설계
+- DynamoDB의 저장 모델은 아이템이 테이블과 인덱스로 구성
+- 314P ftgo-order-history 테이블 참조
+
+- DynamoDB 애플리케이션은 테이블 아이템을 기본키로 삽입/수정/조회 함
 
 #### findOrderHistory 쿼리 전용 인덱스 정의
+- 첫번째 속성은 파티션 키 : DynamoDB가 Z축 확장할 때 이 키를 보고 아이템의 저장소 파티션을 선택 
+- 두번째 속성은 정렬 키 : query() 작업은 주어진 파티션 키를 갖고 있고, 주어진 범위 내의 정렬 키를 갖고 있으면서, 필터 표현식에 맞는 아이템 목록을 주어진 정렬 키로 정렬
+
+- 보조 인덱스를 사용하여 쿼리
+  - ex) ftgo-order-history-consumer-id-and-creation-time (consuerId + orderCreationTime) 
 
 #### findOrderHisotry 쿼리 구현
+- DynamoDB query() 작업은 정렬 키에 범위 제약을 걸 수 있는 조건 표현식을 지원하므로 쉽게 구현 가능
+- 그 밖의 비식별 속성에 해당되는 검색 기준은 불(boolean) 표현식인 필터 표현식을 이용하여 구현 가능
 
 #### 쿼리 결과 페이지네이션
+- DynamoDB 쿼리는 반환할 아이템의 최대 개수를 pageSize 매개변수로 지정
+- DynamoDB는 위치 기반의 페이지네이션은 지원하지 않기 때문에, 주문 이력 서비스는 클라이언트에 오파크 페이지네이션 토큰을 반환
 
 #### 주문 업데이트
+- DynamoDB는 아이템 추가/수정 시 PutItem(), UpdateItem() 제공
+  - PutItem() 은 기본키로 찾은 아이템을 생성 또는 대체
+  - UpdateItem()은 개별 아이템 속성을 업데이트하고, 필요 시 아이템을 생성하는 작업
 
 #### 중복 이벤트 감지
+- UpdateItem() 작업의 조건부 업데이트 매커니즘을 활용하면 중복 이벤트가 아닐 때에만 아이템을 업데이트 가능
+  - 속성이 존재하고 그 값이 자신의 ID보다 같거나 작은 이벤트면 중복 이벤트 
 
 ### 7.4.3 OrderHistoryDaoDynamoDB 클래스
+- OrderHistoryDaoDynamoDB는 ftgo-order-history 테이블의 아이템을 읽고 쓰는 메서드가 구현된 클래스
+  - OrderHistoryEventHandler가 업데이트 메서드
+  - OrderHistoryQuery API가 쿼리 메서드
 
 #### addOrder() 메서드
+- order, sourceEvent 두 매개변수를 받아 ftgo-order-history 테이블에 Order를 추가하는 메서드
 
 #### notePickedUp() 메서드
+- DeliveryPickUp 이벤트 핸들러가 호출하는 메서드
 
 #### idempotenUpdate() 메서드
+- idempotenUpdate()는 중복 업데이트를 방지하는 UpdateItemSpec에 조건부 표현식을 추가한 후 아이템을 업데이트
+  - 중복 이벤트일 경우 updateItem()이 던진 ConditionalCheckFailedExecption 예외를 붙잡아 아무 일도 하지 않음 
 
 #### findOrderHistory() 메서드
+- findOrderHistory()는 보조 인덱스 ftgo-order-history-by-consumer-id-and-creation-time 을 이용하여 ftgo-order-history 테이블을 쿼리해서 소비자 주문을 조회
+
+#### 기타
+- CQRS 뷰를 구현하려면 DB 선정 문제부터 시작해서 효율적인 조회/수정이 가능한 데이터 모델의 설계, 동시 업데이트 처리 방법, 중복 이벤트를 걸러 내는 문제 등 고민 해야 함
+- 동시성을 잘 처리하고 업데이트의 멱등성을 보장해야 하므로 유일하게 DAO만 코드가 다소 복잡
 
 ## 7.5 마치며
 - 여러 서비스의 데이터를 조회하는 쿼리는 크게 API 조합 패턴과 커맨드 쿼리 책임 분리(CQRS) 패턴으로 구현
