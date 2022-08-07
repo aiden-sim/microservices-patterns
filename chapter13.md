@@ -144,13 +144,23 @@
 
 ### 13.3.3 인증/인가 처리
 
-
 #### 모놀리스의 LoginHandler는 USERINFO 쿠키를 세팅한다
+- MSA로 전환하려면 LoginHandler가 USERINFO 쿠키도 함께 세팅하도록 변경
 
 #### API 게이트웨이는 USERINFO 쿠키를 Authorization 헤더에 매핑한다
+- API 게이트웨이는 USERINFO 쿠키를 검증 이후 이 쿠키를 Authorization 요청 헤더에 넣어 서비스에 전달
 
 
 ## 13.4 새 기능을 서비스로 구현: 배달 실패한 주문 처리
+
+
+### 13.4.1 배달 지연 서비스 설계
+
+### 13.4.2 배달 지연 서비스를 위한 통합 글루 설계
+
+#### CustomerContactInfoRepository로 고객 연락처 조회
+
+#### 주문/음식점 도메인 이벤트의 발행과 소비
 
 
 ## 13.5 모놀리스 분해: 배달 관리 추출
